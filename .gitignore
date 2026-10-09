@@ -1,0 +1,19 @@
+# Large model weights
+MedNet-PVS_weights/
+**/MedNet-PVS_weights/
+
+# MRI inputs and generated outputs
+input_t1/
+input_t2/
+output_t1/
+output_t2/
+**/input_t1/
+**/input_t2/
+**/output_t1/
+**/output_t2/
+
+# Medical imaging files 
+*.nii
+*.nii.gz
+*.dcm
+

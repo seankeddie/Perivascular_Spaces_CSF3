@@ -1,0 +1,42 @@
+#!/bin/bash --login
+#SBATCH -p multicore
+#SBATCH -c 8
+#SBATCH --mem=32G
+#SBATCH -t 1-00:00:00
+#SBATCH -J mednet_t1
+#SBATCH -o mednet_t1.out
+#SBATCH -e mednet_t1.err
+
+BASE=/mnt/iusers01/fse-ugpgt01/phy01/y44618sk/scratch/mednet_csf
+
+cd "$BASE"
+
+mkdir -p "$BASE/nnUNet_raw_data_base" "$BASE/nnUNet_preprocessed"
+
+APPTAINERENV_nnUNet_raw_data_base=/workspace/weights/nnUNet_raw_data_base \
+APPTAINERENV_nnUNet_preprocessed=/workspace/weights/nnUNet_preprocessed \
+APPTAINERENV_RESULTS_FOLDER=/workspace/weights/nnUNet_trained_models \
+APPTAINERENV_OMP_NUM_THREADS=1 \
+APPTAINERENV_MKL_NUM_THREADS=1 \
+apptainer exec \
+  --bind "$BASE/MedNet-PVS_weights/nnUNet_trained_models:/workspace/weights/nnUNet_trained_models:ro" \
+  --bind "$BASE/nnUNet_raw_data_base:/workspace/weights/nnUNet_raw_data_base" \
+  --bind "$BASE/nnUNet_preprocessed:/workspace/weights/nnUNet_preprocessed" \
+  --bind "$BASE/mednet_input_t1:/workspace/input:ro" \
+  --bind "$BASE/mednet_output_t1:/workspace/output" \
+  "$BASE/mednet-pvs.sif" \
+  sh -c '
+    mednextv1_predict \
+      -i /workspace/input \
+      -o /workspace/output \
+      -tr nnUNetTrainerV2_MedNeXt_L_kernel5_lr_3e_4_500epochs \
+      -ctr nnUNetTrainerV2CascadeFullRes \
+      -m 3d_fullres \
+      -p nnUNetPlansv2.1_trgSp_0.8x0.8x0.8 \
+      -t Task004_3DStratifiedSplits \
+      -f 0 \
+      --disable_tta \
+      --disable_mixed_precision \
+      --num_threads_preprocessing 4 \
+      --num_threads_nifti_save 4 \
+      --overwrite_existing'
