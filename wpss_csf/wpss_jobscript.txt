@@ -1,0 +1,45 @@
+#!/bin/bash --login
+#SBATCH -p multicore_small
+#SBATCH -c 8
+#SBATCH --mem=32G
+#SBATCH -t 1-00:00:00
+#SBATCH -J wpss_t1
+#SBATCH -o wpss_t1.out
+#SBATCH -e wpss_t1.err
+
+BASE="/mnt/iusers01/fse-ugpgt01/phy01/y44618sk/scratch/wpss_csf"
+SIF="$BASE/wpss.sif"
+CODE="$BASE/WPSS"
+WEIGHTS_DIR="$BASE/weights"
+WEIGHTS_NAME="t1w_pretrained"
+DATASET="$BASE/data"
+
+echo "Job started: $(date)"
+echo "Running on: $(hostname)"
+echo "Container: $SIF"
+echo "Dataset: $DATASET"
+
+for f in "$SIF" \
+         "$CODE/src/predict.py" \
+         "$WEIGHTS_DIR/$WEIGHTS_NAME.meta" \
+         "$WEIGHTS_DIR/$WEIGHTS_NAME.index" \
+         "$WEIGHTS_DIR/$WEIGHTS_NAME.data-00000-of-00001"; do
+    [ -f "$f" ] || { echo "MISSING FILE: $f"; exit 1; }
+done
+[ -d "$DATASET" ] || { echo "MISSING DATASET DIR: $DATASET"; exit 1; }
+
+APPTAINERENV_OMP_NUM_THREADS=8 \
+apptainer exec \
+    --pwd /workspace/WPSS/src \
+    --bind "$CODE:/workspace/WPSS" \
+    --bind "$WEIGHTS_DIR:/workspace/weights:ro" \
+    --bind "$DATASET:/workspace/data" \
+    "$SIF" \
+    python3 predict.py \
+        --gpu=0 \
+        --weights=/workspace/weights/$WEIGHTS_NAME \
+        --dataset=/workspace/data \
+        --modality=t1w \
+        --patch_size=16
+
+echo "WPSS finished: $(date)"
